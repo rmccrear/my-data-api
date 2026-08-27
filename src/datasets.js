@@ -62,7 +62,7 @@ export function parseQuery(url, overrides = {}) {
   return {
     limit: toBoundedInteger(url.searchParams.get("limit"), defaultLimit, 1, maxLimit),
     offset: toBoundedInteger(url.searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER),
-    search: (url.searchParams.get("q") ?? url.searchParams.get("search") ?? "").trim(),
+    search: (url.searchParams.get("search") ?? "").trim(),
   };
 }
 

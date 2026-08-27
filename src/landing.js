@@ -226,7 +226,7 @@ export function landingPage(url, datasets) {
         <section aria-labelledby="routes-title">
           <div class="section-head">
             <h2 id="routes-title">API routes</h2>
-            <p>Start by discovering datasets, fetch records with optional <code>q</code>, <code>limit</code>, and <code>offset</code>, then ask grounded questions through chat.</p>
+            <p>Start by discovering datasets, fetch records with optional <code>search</code>, <code>limit</code>, and <code>offset</code>, then ask grounded questions through chat.</p>
           </div>
 
           <a class="route" href="${datasetsUrl}">
