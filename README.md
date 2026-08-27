@@ -143,35 +143,105 @@ If Workers AI is not available during local development, the endpoint returns a 
 
 ## Use from a frontend
 
-Records:
+### Start with these copy/paste helpers
+
+For introductory lessons, give students these three small helpers first. This keeps the lesson focused on using returned data instead of repeating `fetch()` boilerplate.
+
+Replace `YOUR-API` once with the name of the deployed Worker:
 
 ```js
-const response = await fetch(
-  "https://YOUR-WORKER.YOUR-SUBDOMAIN.workers.dev/api/v1/datasets/viral-50-usa/records?limit=10"
-);
+const API_BASE_URL = "https://YOUR-API.workers.dev";
 
-const data = await response.json();
-console.log(data.records);
+async function getRecord(dataset, number) {
+  const offset = Math.max(0, number - 1);
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/datasets/${dataset}/records?limit=1&offset=${offset}`
+  );
+  const data = await response.json();
+  return data.records[0] ?? null;
+}
+
+async function getRecords(dataset, limit = 10) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/datasets/${dataset}/records?limit=${limit}`
+  );
+  const data = await response.json();
+  return data.records;
+}
+
+async function chatWithDataset(dataset, message) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/datasets/${dataset}/chat`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ message })
+    }
+  );
+  const data = await response.json();
+  return data.response;
+}
 ```
 
-Chat:
+`getRecord()` treats `1` as the first record, `2` as the second record, and so on. Internally it uses the canonical records endpoint with `limit=1` and the corresponding `offset`.
+
+### 1. One object
+
+Start by retrieving and using one record:
 
 ```js
-const response = await fetch(
-  "https://YOUR-WORKER.YOUR-SUBDOMAIN.workers.dev/api/v1/datasets/viral-50-usa/chat",
-  {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      message: "Which artists appear more than once?"
-    })
-  }
+const song = await getRecord("viral-50-usa", 1);
+
+console.log(song.Artist);
+console.log(song["Track Name"]);
+```
+
+### 2. Array of objects
+
+Next, retrieve several records and use array indexes:
+
+```js
+const songs = await getRecords("viral-50-usa", 10);
+
+console.log(songs[0].Artist);
+console.log(songs[1].Artist);
+```
+
+### 3. A natural-language question
+
+Finally, ask a question about the same dataset:
+
+```js
+const answer = await chatWithDataset(
+  "viral-50-usa",
+  "Which artist appears most often?"
 );
 
-const data = await response.json();
-console.log(data.response);
-console.log(data.tool_calls);
+console.log(answer);
 ```
+
+The three matching calls create a deliberate progression:
+
+```js
+// One object
+const song = await getRecord("viral-50-usa", 1);
+console.log(song["Track Name"]);
+
+// Array of objects
+const songs = await getRecords("viral-50-usa", 10);
+console.log(songs[0].Artist);
+
+// A question about the same dataset
+const answer = await chatWithDataset(
+  "viral-50-usa",
+  "Which artist appears most often?"
+);
+console.log(answer);
+```
+
+Use these helpers as copy/paste starter code at first. Once students are comfortable working with the returned object, array, and answer, open the helper functions and examine how `await fetch()`, `response.json()`, query parameters, and POST bodies work.
 
 All API responses include permissive CORS headers so browser projects hosted elsewhere can call the Worker.
 
