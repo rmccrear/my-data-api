@@ -43,6 +43,18 @@ test("lists configured datasets", async () => {
   assert.deepEqual(body.datasets.map(({ id }) => id), ["cats", "board-games", "viral-50-usa"]);
 });
 
+test("root shows a concise deployment success and route help page", async () => {
+  const response = await worker.fetch(new Request("https://student.example.com/"), env);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("Content-Type"), /text\/html/);
+  const body = await response.text();
+  assert.match(body, /Deployment successful/);
+  assert.match(body, /\/api\/v1\/datasets\/\{dataset\}\/records/);
+  assert.match(body, /await/);
+  assert.match(body, /console\.log/);
+  assert.match(body, /https:\/\/student\.example\.com\/api\/v1\/datasets/);
+});
+
 test("returns searched dataset records", async () => {
   const response = await worker.fetch(
     new Request("https://example.com/api/v1/datasets/viral-50-usa/records?search=Dolly&limit=2&offset=1"),
