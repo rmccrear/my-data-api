@@ -68,10 +68,10 @@ Example response:
 ### Get records
 
 ```http
-GET /api/v1/datasets/viral-50-usa/records?q=Dolly&limit=10&offset=0
+GET /api/v1/datasets/viral-50-usa/records?search=Dolly&limit=10&offset=0
 ```
 
-For example, `/api/v1/datasets/cats/records?q=Abyssinian` returns cat records containing “Abyssinian” in any column.
+For example, `/api/v1/datasets/cats/records?search=Abyssinian` returns cat records containing “Abyssinian” in any column.
 
 Supported query parameters:
 
@@ -79,8 +79,50 @@ Supported query parameters:
 | --- | --- | --- |
 | `limit` | Maximum records returned (1–100) | `20` |
 | `offset` | Matching records to skip | `0` |
-| `q` | Case-insensitive text filter across every field | empty |
-| `search` | Backward-compatible alias for `q` | empty |
+| `search` | Case-insensitive text filter across every field | empty |
+
+#### Search and filter parameters
+
+Use `search` for simple record filtering. The API compares the value with every column in every record, without requiring students to know the CSV field names.
+
+```http
+GET /api/v1/datasets/cats/records?search=Egypt
+GET /api/v1/datasets/board-games/records?search=Science%20Fiction
+GET /api/v1/datasets/viral-50-usa/records?search=dolly
+```
+
+Search behavior:
+
+- Matching is case-insensitive, so `search=dolly` matches `Dolly Parton`.
+- Matching checks all fields, including names, categories, artists, origins, and other CSV columns.
+- `search` is treated as literal text. Characters with special regular-expression meaning are safely escaped.
+- Use URL encoding for spaces and punctuation. `URLSearchParams` handles this automatically in JavaScript.
+- Filtering happens before pagination, so `total` is the number of matching records while `count` is the number returned on the current page.
+
+Combine filtering and pagination:
+
+```http
+GET /api/v1/datasets/board-games/records?search=Fantasy&limit=10&offset=20
+```
+
+Build the query safely in JavaScript:
+
+```js
+const API_BASE_URL = "https://YOUR-API.workers.dev";
+const parameters = new URLSearchParams({
+  search: "Science Fiction",
+  limit: 10,
+  offset: 0
+});
+
+const response = await fetch(
+  `${API_BASE_URL}/api/v1/datasets/board-games/records?${parameters}`
+);
+const data = await response.json();
+
+console.log(data.total);
+console.log(data.records);
+```
 
 Example response:
 
@@ -171,9 +213,9 @@ async function getRecord(dataset, number) {
   return data.records[0] ?? null;
 }
 
-async function getRecords(dataset, limit = 10, q = "") {
+async function getRecords(dataset, limit = 10, search = "") {
   const parameters = new URLSearchParams({ limit });
-  if (q) parameters.set("q", q);
+  if (search) parameters.set("search", search);
   const response = await fetch(
     `${API_BASE_URL}/api/v1/datasets/${dataset}/records?${parameters}`
   );

@@ -59,9 +59,9 @@ test("root shows a concise deployment success and route help page", async () => 
   assert.match(body, /https:\/\/student\.example\.com\/api\/v1\/datasets/);
 });
 
-test("returns q-filtered dataset records", async () => {
+test("returns search-filtered dataset records", async () => {
   const response = await worker.fetch(
-    new Request("https://example.com/api/v1/datasets/viral-50-usa/records?q=dolly&limit=2&offset=1"),
+    new Request("https://example.com/api/v1/datasets/viral-50-usa/records?search=dolly&limit=2&offset=1"),
     env,
   );
   assert.equal(response.status, 200);
@@ -72,7 +72,7 @@ test("returns q-filtered dataset records", async () => {
   assert.equal(response.headers.get("Access-Control-Allow-Origin"), "*");
 });
 
-test("keeps search as a backwards-compatible q alias", async () => {
+test("only search is recognized as the record filter parameter", async () => {
   const response = await worker.fetch(
     new Request("https://example.com/api/v1/datasets/cats/records?search=egypt&limit=10"),
     env,
@@ -80,6 +80,13 @@ test("keeps search as a backwards-compatible q alias", async () => {
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.total, 3);
+
+  const ignoredQResponse = await worker.fetch(
+    new Request("https://example.com/api/v1/datasets/cats/records?q=egypt&limit=10"),
+    env,
+  );
+  const ignoredQBody = await ignoredQResponse.json();
+  assert.ok(ignoredQBody.total > body.total);
 });
 
 test("returns a useful unknown dataset error", async () => {
