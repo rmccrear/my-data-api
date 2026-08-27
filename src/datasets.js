@@ -62,16 +62,17 @@ export function parseQuery(url, overrides = {}) {
   return {
     limit: toBoundedInteger(url.searchParams.get("limit"), defaultLimit, 1, maxLimit),
     offset: toBoundedInteger(url.searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER),
-    search: (url.searchParams.get("search") ?? "").trim(),
+    search: (url.searchParams.get("q") ?? url.searchParams.get("search") ?? "").trim(),
   };
 }
 
 export function filterRecords(records, { search = "", limit = DEFAULT_LIMIT, offset = 0 }) {
-  const normalizedSearch = search.trim().toLocaleLowerCase();
-  const matches = normalizedSearch
+  const normalizedSearch = search.trim();
+  const matcher = normalizedSearch ? new RegExp(escapeRegExp(normalizedSearch), "iu") : null;
+  const matches = matcher
     ? records.filter((record) =>
         Object.values(record).some((value) =>
-          String(value ?? "").toLocaleLowerCase().includes(normalizedSearch),
+          matcher.test(String(value ?? "")),
         ),
       )
     : records;
@@ -103,4 +104,8 @@ function toBoundedInteger(rawValue, fallback, min, max) {
   const number = Number(rawValue);
   if (!Number.isInteger(number)) return fallback;
   return Math.min(max, Math.max(min, number));
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

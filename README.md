@@ -68,8 +68,10 @@ Example response:
 ### Get records
 
 ```http
-GET /api/v1/datasets/viral-50-usa/records?search=Dolly&limit=10&offset=0
+GET /api/v1/datasets/viral-50-usa/records?q=Dolly&limit=10&offset=0
 ```
+
+For example, `/api/v1/datasets/cats/records?q=Abyssinian` returns cat records containing “Abyssinian” in any column.
 
 Supported query parameters:
 
@@ -77,7 +79,8 @@ Supported query parameters:
 | --- | --- | --- |
 | `limit` | Maximum records returned (1–100) | `20` |
 | `offset` | Matching records to skip | `0` |
-| `search` | Case-insensitive text search across every field | empty |
+| `q` | Case-insensitive text filter across every field | empty |
+| `search` | Backward-compatible alias for `q` | empty |
 
 Example response:
 
@@ -129,9 +132,16 @@ Example response:
     }
   ],
   "mode": "workers-ai",
-  "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+  "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+  "usage": {
+    "total_tokens": 968,
+    "ai_calls": 2,
+    "estimated": false
+  }
 }
 ```
+
+`usage` totals all Workers AI calls needed to answer the question. When Cloudflare reports token usage, `estimated` is `false`; otherwise the Worker provides a rough character-based total and sets `estimated` to `true`. Local mock responses report zero tokens and zero AI calls.
 
 The route—not the model—selects the dataset. A chat request to `/viral-50-usa/chat` can search only `viral-50-usa`; the tool schema does not contain a dataset argument. Tool-call metadata is intentionally returned so students can inspect the sequence:
 
@@ -161,9 +171,11 @@ async function getRecord(dataset, number) {
   return data.records[0] ?? null;
 }
 
-async function getRecords(dataset, limit = 10) {
+async function getRecords(dataset, limit = 10, q = "") {
+  const parameters = new URLSearchParams({ limit });
+  if (q) parameters.set("q", q);
   const response = await fetch(
-    `${API_BASE_URL}/api/v1/datasets/${dataset}/records?limit=${limit}`
+    `${API_BASE_URL}/api/v1/datasets/${dataset}/records?${parameters}`
   );
   const data = await response.json();
   return data.records;
@@ -207,6 +219,15 @@ const songs = await getRecords("viral-50-usa", 10);
 
 console.log(songs[0].Artist);
 console.log(songs[1].Artist);
+```
+
+Filter the same route by passing a third argument. The API checks the value against every field in each record:
+
+```js
+const egyptianCats = await getRecords("cats", 10, "Egypt");
+
+console.log(egyptianCats[0].Name);
+console.log(egyptianCats[0].Origin);
 ```
 
 ### 3. A natural-language question

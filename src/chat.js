@@ -9,7 +9,10 @@ const STOP_WORDS = new Set([
 ]);
 
 export async function chatWithDataset(env, datasetId, message, requestUrl) {
-  if (!env.AI?.run) return mockChat(env, datasetId, message, requestUrl, "Workers AI is not available locally.");
+  const usage = { total_tokens: 0, ai_calls: 0, estimated: false };
+  if (!env.AI?.run) {
+    return mockChat(env, datasetId, message, requestUrl, "Workers AI is not available locally.", usage);
+  }
 
   try {
     const messages = [
@@ -22,26 +25,26 @@ export async function chatWithDataset(env, datasetId, message, requestUrl) {
       { role: "user", content: message },
     ];
 
-    let planning = await env.AI.run(llmConfig.model, {
+    let planning = await runAI(env, {
       messages,
       tools: [datasetToolDefinition()],
       temperature: llmConfig.temperature,
       max_tokens: llmConfig.max_tokens,
-    });
+    }, usage);
 
     let requestedCalls = normalizeToolCalls(planning.tool_calls);
     if (requestedCalls.length === 0) {
-      planning = await env.AI.run(llmConfig.model, {
+      planning = await runAI(env, {
         messages: [...messages, { role: "user", content: "Call query_dataset now before answering." }],
         tools: [datasetToolDefinition()],
         temperature: 0,
         max_tokens: llmConfig.max_tokens,
-      });
+      }, usage);
       requestedCalls = normalizeToolCalls(planning.tool_calls);
     }
 
     if (requestedCalls.length === 0) {
-      return mockChat(env, datasetId, message, requestUrl, "The model did not request the dataset tool.");
+      return mockChat(env, datasetId, message, requestUrl, "The model did not request the dataset tool.", usage);
     }
 
     const toolCalls = [];
@@ -54,10 +57,10 @@ export async function chatWithDataset(env, datasetId, message, requestUrl) {
     }
 
     if (toolResults.length === 0) {
-      return mockChat(env, datasetId, message, requestUrl, "The model requested an unknown tool.");
+      return mockChat(env, datasetId, message, requestUrl, "The model requested an unknown tool.", usage);
     }
 
-    const grounded = await env.AI.run(llmConfig.model, {
+    const grounded = await runAI(env, {
       messages: [
         {
           role: "system",
@@ -71,7 +74,7 @@ export async function chatWithDataset(env, datasetId, message, requestUrl) {
       ],
       temperature: llmConfig.temperature,
       max_tokens: llmConfig.max_tokens,
-    });
+    }, usage);
 
     return {
       dataset: datasetId,
@@ -79,11 +82,42 @@ export async function chatWithDataset(env, datasetId, message, requestUrl) {
       tool_calls: toolCalls,
       mode: "workers-ai",
       model: llmConfig.model,
+      usage,
     };
   } catch (error) {
     console.error("Workers AI chat failed; returning local fallback.", error);
-    return mockChat(env, datasetId, message, requestUrl, "Workers AI was unavailable for this request.");
+    return mockChat(env, datasetId, message, requestUrl, "Workers AI was unavailable for this request.", usage);
   }
+}
+
+async function runAI(env, input, usage) {
+  usage.ai_calls += 1;
+  try {
+    const result = await env.AI.run(llmConfig.model, input);
+    const reportedTokens = getReportedTotalTokens(result);
+    if (reportedTokens === null) {
+      usage.total_tokens += estimateTokens(input, result);
+      usage.estimated = true;
+    } else {
+      usage.total_tokens += reportedTokens;
+    }
+    return result;
+  } catch (error) {
+    usage.total_tokens += estimateTokens(input);
+    usage.estimated = true;
+    throw error;
+  }
+}
+
+function getReportedTotalTokens(result) {
+  const value = result?.usage?.total_tokens ?? result?.result?.usage?.total_tokens;
+  const tokens = Number(value);
+  return Number.isFinite(tokens) && tokens >= 0 ? Math.round(tokens) : null;
+}
+
+function estimateTokens(input, result) {
+  const text = `${JSON.stringify(input)}${result === undefined ? "" : JSON.stringify(result)}`;
+  return Math.max(1, Math.ceil(text.length / 4));
 }
 
 function normalizeToolCalls(toolCalls) {
@@ -99,7 +133,7 @@ function extractText(result) {
   return result?.response ?? result?.result?.response ?? "The model returned no text response.";
 }
 
-async function mockChat(env, datasetId, message, requestUrl, reason) {
+async function mockChat(env, datasetId, message, requestUrl, reason, usage) {
   const dataset = await loadDataset(env, datasetId, requestUrl);
   const search = chooseMockSearch(dataset.records, message);
   const query = { search, limit: 10, offset: 0 };
@@ -116,6 +150,7 @@ async function mockChat(env, datasetId, message, requestUrl, reason) {
     tool_calls: [{ tool: "query_dataset", arguments: query }],
     mode: "mock",
     note: `${reason} Deploy to Cloudflare to use the configured Workers AI model.`,
+    usage,
   };
 }
 
