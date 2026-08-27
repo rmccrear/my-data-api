@@ -2,9 +2,7 @@
 
 A small Cloudflare Worker that turns Code.org-style CSV files into JSON APIs for student frontend projects. It also includes a grounded chat endpoint that lets Cloudflare Workers AI query one selected dataset through a visible `query_dataset` tool call.
 
-> **Instructor setup:** replace `YOUR-GITHUB-USERNAME` in the button below after publishing this repository publicly. Cloudflare's deploy flow needs the public GitHub repository URL.
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/YOUR-GITHUB-USERNAME/student-data-api)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/rmccrear/my-data-api)
 
 The deploy flow creates a copy of the repository in the student's GitHub account, provisions the Workers AI binding, deploys the Worker, and connects future repository pushes to automatic deployments. Students do not need an API key, a Hugging Face account, a local server, or a local deployment CLI.
 
@@ -278,10 +276,9 @@ npm run check
 
 ## Before publishing the template
 
-1. Create a public GitHub repository from this directory.
-2. Replace the `YOUR-GITHUB-USERNAME` placeholder in the deploy-button URL with the repository owner's GitHub username. Change `student-data-api` too if the repository has a different name.
-3. Confirm the deploy button opens Cloudflare's setup flow.
-4. Mark the GitHub repository as a template if students should create copies directly from GitHub as well.
+1. Keep `https://github.com/rmccrear/my-data-api` public so Cloudflare can clone it.
+2. Confirm the deploy button opens Cloudflare's setup flow.
+3. Mark the GitHub repository as a template if students should create copies directly from GitHub as well.
 
 Cloudflare reads `wrangler.jsonc`, automatically provisions the `AI` binding during one-click deployment, and uses the repository's build/deploy scripts.
 
